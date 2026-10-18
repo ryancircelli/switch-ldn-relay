@@ -16,5 +16,15 @@
     "vitest": "~4.1",
     "wrangler": "^4.151.1",
     "ws": "^8.22.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "TOKEN_SWITCH_A": {
+        "description": "SHA-256 (64 hex) of the first console's token, never the token itself. `kit/build.sh switch-a` mints the token and prints this hash."
+      },
+      "TOKEN_SWITCH_B": {
+        "description": "SHA-256 (64 hex) of the second console's token. `kit/build.sh switch-b` prints it."
+      }
+    }
   }
 }

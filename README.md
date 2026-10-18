@@ -43,6 +43,8 @@ npm test               # typecheck + vitest in workerd: codec layout/round-trips
 npm run test:e2e       # starts wrangler dev with throwaway tokens, runs two desktop clients, stops it
 npm run test:e2e -- --url wss://switch-ldn.<subdomain>.workers.dev/ldn   # with LDN_TOKEN_A / LDN_TOKEN_B set
 npm run test:e2e -- --tcp 127.0.0.1:30456   # same lobby scenario against a C# LdnServer, for comparison
+# Differential: one 40-step session against both servers, every received packet compared in order
+LDN_TOKEN_A=.. LDN_TOKEN_B=.. node --experimental-transform-types tools/compare.ts --url ws://127.0.0.1:8787/ldn --tcp 127.0.0.1:30456
 ```
 
 To run the relay by hand, put the hashes in `.dev.vars` (`TOKEN_SWITCH_A=<sha256 hex>`, gitignored) and run `npm run dev`.
@@ -83,6 +85,8 @@ These differences are deliberate. Everything else follows the C# handlers, inclu
   means it never matches. The sysmodule always sends a fixed id, so for it every session gets a fresh MAC, as in C#.
 - Short or malformed payloads are dropped silently, as in C#. One case differs: a join into a game whose
   node table is full answers `TooManyPlayers`, where C# throws.
+- `ConnectPrivate` is accepted at its wire size, 0xBC. C#'s managed struct is 0xC0 (its `NetworkConfig` is
+  8-aligned), so C# silently drops a 0xBC `ConnectPrivate` and private-room joins never work there.
 - Liveness: a Durable Object alarm every 10 s replaces the C# ping loop, with the same rules. A session
   idle for more than 10 s gets `Ping{requester=0}`, and one that has not answered by the next tick is closed.
   After the object wakes from hibernation, every session counts as idle once.

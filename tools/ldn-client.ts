@@ -143,12 +143,14 @@ export class Ldn {
     this.send(PacketId.Connect, ConnectRequest.encode(r));
   }
 
-  connectPrivate(sessionId: Uint8Array, o: { name?: string } = {}) {
+  /** padTo: C# LdnServer only accepts 0xC0 bytes (its managed struct is 8-aligned); the wire struct is 0xBC. */
+  connectPrivate(sessionId: Uint8Array, o: { name?: string; padTo?: number } = {}) {
     const r = ConnectPrivateRequest.zero();
     r.security_parameter.session_id = sessionId;
     r.user_config.user_name.set(utf8(o.name ?? "PrivStation"));
     r.local_communication_version = 1;
-    this.send(PacketId.ConnectPrivate, ConnectPrivateRequest.encode(r));
+    const out = new Uint8Array(Math.max(o.padTo ?? 0, ConnectPrivateRequest.size));
+    this.send(PacketId.ConnectPrivate, ConnectPrivateRequest.encode(r, out));
   }
 
   proxyData(src: number, dst: number, data: Uint8Array, ports = { src: 1000, dst: 2000 }) {

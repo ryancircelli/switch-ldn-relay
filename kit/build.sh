@@ -2,6 +2,17 @@
 # Build the SD-card kit for one console: out/<id>/ laid out as an SD root, plus out/<id>.zip.
 # Both contain the console's token: they are created mode 600/700 and are gitignored.
 #
+#   RELAY_HOST=switch-ldn.<subdomain>.workers.dev ./build.sh <console-id>
+#
+# The token lives in secrets/<id>.token. If there is none, one is minted and the script prints the
+# Worker secret name and the SHA-256 hash to store in Cloudflare (never the token itself).
+#
+# The sysmodule comes from the pinned ryu_ldn_nx release (RELEASE_TAG / RELEASE_SHA256 below),
+# downloaded once into cache/. To use your own build instead:
+#   SDKIT_DIST=<dir>    a 'make dist' output dir (an SD tree), used as is
+#   SDKIT_REPO=<dir>    a ryu_ldn_nx checkout: uses <dir>/output unless SDKIT_DIST is set, and
+#                       checks its Atmosphere-libs version against AMS_TARGET
+#
 # Vendored inputs, pinned by SHA-256 below. To refresh, re-download, verify, then update the pin:
 #   vendor/cacert.pem  https://curl.se/ca/cacert.pem  (must match https://curl.se/ca/cacert.pem.sha256)
 #   vendor/emummc.txt  https://nintendohomebrew.com/assets/emummc.txt
@@ -15,10 +26,9 @@ ID=${1:-}
 [[ $ID =~ ^[a-z0-9-]{1,32}$ ]] || die "usage: build.sh <console-id>   (id: a-z, 0-9, '-', 1..32 chars)"
 
 HERE=$(cd "$(dirname "$0")" && pwd)
-ROOT=$(dirname "$HERE")
-REPO=${SDKIT_REPO:-$ROOT/ryu_ldn_nx-integration}   # branch fork/integration
-DIST=${SDKIT_DIST:-$REPO/output}   # override only for testing
-TOKEN_FILE=$ROOT/secrets/$ID.token
+REPO=${SDKIT_REPO:-}
+DIST=${SDKIT_DIST:-${REPO:+$REPO/output}}   # empty: use the pinned release
+TOKEN_FILE=$HERE/secrets/$ID.token
 OUT=$HERE/out/$ID
 
 RELAY_HOST=${RELAY_HOST:-}   # your own Worker, e.g. switch-ldn.<subdomain>.workers.dev
@@ -26,27 +36,57 @@ RELAY_HOST=${RELAY_HOST:-}   # your own Worker, e.g. switch-ldn.<subdomain>.work
 TID=4200000000000010
 CA_SHA256=a41b5d356aea97a529fe27e0f7316d2f9d946d75927476cf9cf1b90637d00505     # Mozilla certdata 2026-09-25
 HOSTS_SHA256=51c031bbde08df34bd8ebc859b9bb8b635cd406d9fb57f83f17b25b88fdc04b1  # Last-Modified 2026-05-15
-AMS_TARGET=1.12.1   # must match INSTALL.md
+AMS_TARGET=1.12.1   # the pinned release is built against Atmosphere 1.12.1; must match INSTALL.md
+RELEASE_TAG=wss-v1
+RELEASE_SHA256=TODO   # sha256 of ryu_ldn_nx-release.zip at RELEASE_TAG
+RELEASE_URL=https://github.com/ryancircelli/ryu_ldn_nx/releases/download/$RELEASE_TAG/ryu_ldn_nx-release.zip
 CA_ROOTS="ISRG Root X1|ISRG Root X2|GTS Root R1|GTS Root R3|GTS Root R4|SSL.com Root Certification Authority RSA|SSL.com Root Certification Authority ECC|SSL.com TLS RSA Root CA 2022|SSL.com TLS ECC Root CA 2022"
 
 # --- inputs -------------------------------------------------------------------
+if [[ -z $DIST ]]; then
+    [[ $RELEASE_SHA256 =~ ^[0-9a-f]{64}$ ]] || die "RELEASE_SHA256 in build.sh is not pinned yet ('$RELEASE_SHA256').
+  Set it to the sha256 of $RELEASE_URL
+  (download it and run sha256sum), or build the sysmodule yourself and pass SDKIT_DIST=<its output dir>."
+    zip=$HERE/cache/ryu_ldn_nx-$RELEASE_TAG.zip
+    mkdir -p "$HERE/cache"
+    if [[ ! -f $zip ]]; then
+        echo "downloading $RELEASE_URL"
+        curl -fsSL --proto '=https' -o "$zip.part" "$RELEASE_URL" || die "download failed: $RELEASE_URL"
+        mv -- "$zip.part" "$zip"
+    fi
+    echo "$RELEASE_SHA256  $zip" | sha256sum -c --quiet - \
+        || { rm -f -- "$zip"; die "$zip does not match RELEASE_SHA256 (deleted; re-run to download again)"; }
+    DIST=$HERE/cache/$RELEASE_TAG
+    rm -rf -- "$DIST"
+    mkdir -p "$DIST"
+    unzip -q "$zip" -d "$DIST" || die "could not unzip $zip"
+fi
 [[ -d $DIST ]] || die "sysmodule dist output not found at $DIST.
-  It is produced on branch fork/integration by building the overlay, then the sysmodule's
-  'dist' target (make -C ryu_ldn_nx/overlay && make -C ryu_ldn_nx/sysmodule dist). Re-run once it exists."
+  Build the overlay, then the sysmodule's 'dist' target
+  (make -C ryu_ldn_nx/overlay && make -C ryu_ldn_nx/sysmodule dist), or unset SDKIT_DIST/SDKIT_REPO to use the release."
 for f in atmosphere/contents/$TID/exefs.nsp atmosphere/contents/$TID/main.npdm \
          atmosphere/contents/$TID/toolbox.json atmosphere/contents/$TID/flags/boot2.flag \
          switch/.overlays/ryu_ldn_nx_overlay.ovl config/ryu_ldn_nx/gamelist.txt; do
     [[ -f $DIST/$f ]] || die "dist output is incomplete: missing $f (the overlay must be built before 'make dist')"
 done
 
-hdr=$REPO/sysmodule/Atmosphere-libs/libvapours/include/vapours/ams/ams_api_version.h
-ams=$(awk '/#define ATMOSPHERE_RELEASE_VERSION_(MAJOR|MINOR|MICRO) /{v = v s $3; s = "."} END {print v}' "$hdr")
-[[ $ams == "$AMS_TARGET" ]] || die "Atmosphere-libs is now $ams, not $AMS_TARGET: update AMS_TARGET and INSTALL.md first"
+# A source checkout can be checked; the pinned release (or a bare SDKIT_DIST) is trusted to be AMS_TARGET.
+ams=$AMS_TARGET
+if [[ -n $REPO ]]; then
+    hdr=$REPO/sysmodule/Atmosphere-libs/libvapours/include/vapours/ams/ams_api_version.h
+    ams=$(awk '/#define ATMOSPHERE_RELEASE_VERSION_(MAJOR|MINOR|MICRO) /{v = v s $3; s = "."} END {print v}' "$hdr")
+    [[ $ams == "$AMS_TARGET" ]] || die "Atmosphere-libs is now $ams, not $AMS_TARGET: update AMS_TARGET and INSTALL.md first"
+fi
 
 echo "$CA_SHA256  $HERE/vendor/cacert.pem" | sha256sum -c --quiet - || die "vendor/cacert.pem does not match its pinned hash"
 echo "$HOSTS_SHA256  $HERE/vendor/emummc.txt" | sha256sum -c --quiet - || die "vendor/emummc.txt does not match its pinned hash"
 
-[[ -f $TOKEN_FILE ]] || die "no token file at $TOKEN_FILE"
+minted=
+if [[ ! -f $TOKEN_FILE ]]; then
+    mkdir -p "$HERE/secrets"
+    openssl rand -hex 32 > "$TOKEN_FILE"   # umask 077: mode 600
+    minted=1
+fi
 token=$(<"$TOKEN_FILE")
 [[ $token =~ ^[0-9a-f]{64}$ ]] || die "token in $TOKEN_FILE is not 64 lowercase hex characters"
 
@@ -96,6 +136,7 @@ real_wireless_button = ZR
 enabled = 0
 level = 1
 EOF
+hash=$(printf %s "$token" | sha256sum | cut -d' ' -f1)
 unset token
 chmod 600 "$OUT/config/ryu_ldn_nx/config.ini"
 
@@ -105,3 +146,16 @@ chmod 600 "$OUT/config/ryu_ldn_nx/config.ini"
 chmod 600 "$OUT.zip"
 echo "built $OUT/ and $OUT.zip (Atmosphere $ams target)"
 (cd "$OUT" && sha256sum atmosphere/contents/$TID/exefs.nsp switch/.overlays/ryu_ldn_nx_overlay.ovl)
+if [[ -n $minted ]]; then
+    secret=TOKEN_${ID^^}
+    secret=${secret//-/_}
+    cat <<EOF
+
+New token minted in $TOKEN_FILE (keep it; it is only on this machine and in the kit).
+Store its hash in your Worker before this console connects:
+  secret name: $secret
+  sha256:      $hash
+  run:         npx wrangler secret put $secret    (paste the sha256 when asked)
+or add it in the Cloudflare dashboard under the Worker's Settings > Variables and Secrets.
+EOF
+fi

@@ -1,16 +1,32 @@
-# SD-card install kit (switch-a, switch-b)
+# SD-card install kit
 
-Build one kit per console, pointing at your own Worker: `RELAY_HOST=switch-ldn.<subdomain>.workers.dev ./build.sh switch-a` (then `switch-b`). Each produces
-`out/<id>/` (an SD-card root) and `out/<id>.zip`. Both hold that console's token, so keep
-them off shared drives and never copy one console's kit to the other card.
+Build one kit per console, pointing at your own Worker. From this `kit/` directory:
+
+```sh
+RELAY_HOST=switch-ldn.<subdomain>.workers.dev ./build.sh switch-a
+RELAY_HOST=switch-ldn.<subdomain>.workers.dev ./build.sh switch-b
+```
+
+Console ids are `a-z`, `0-9` and `-`, up to 32 characters. The first build for an id mints its token
+in `secrets/<id>.token` and prints the Worker secret name (`TOKEN_SWITCH_A`), the token's SHA-256 and
+the `npx wrangler secret put` command: store that hash in your Worker. Later builds reuse the token.
+
+Each build produces `out/<id>/` (an SD-card root) and `out/<id>.zip`. Both hold that console's token,
+so keep them off shared drives and never copy one console's kit to the other card.
 `./check.sh out/<id>` re-checks a kit; `build.sh` runs it automatically.
+
+The sysmodule and overlay come from the pinned ryu_ldn_nx release
+(<https://github.com/ryancircelli/ryu_ldn_nx/releases/tag/wss-v1>, `ryu_ldn_nx-release.zip`), downloaded
+into `cache/` and checked against `RELEASE_SHA256` in `build.sh`. To use your own build instead, set
+`SDKIT_DIST=<make dist output dir>`, or `SDKIT_REPO=<ryu_ldn_nx checkout>` (uses its `output/` and
+also checks its Atmosphère version).
 
 ## Atmosphère version
 
-The sysmodule is built against **Atmosphère 1.12.1**: the `sysmodule/Atmosphere-libs` submodule
-is pinned at `cf48d233` ("ams: bump version and add enum version support for 23.0.1", 2026-10-15),
-which reports release 1.12.1 and supports firmware up to **23.0.1**. `build.sh` refuses to run if the
-submodule moves.
+The pinned release is built against **Atmosphère 1.12.1**: its `sysmodule/Atmosphere-libs` submodule
+is at `cf48d233` ("ams: bump version and add enum version support for 23.0.1", 2026-10-15),
+which reports release 1.12.1 and supports firmware up to **23.0.1**. With `SDKIT_REPO`, `build.sh`
+refuses to run if the checkout's submodule reports another version.
 
 - Run Atmosphère 1.12.1 on both cards: <https://github.com/Atmosphere-NX/Atmosphere/releases/tag/1.12.1>.
   A version mismatch crashes at boot with std::abort 0xFFE on title 4200000000000010; rename
@@ -84,6 +100,7 @@ to be safe" and is not encouraged, so treat it as optional.
 
 | File | Source | SHA-256 |
 | --- | --- | --- |
+| sysmodule, overlay, `gamelist.txt` | <https://github.com/ryancircelli/ryu_ldn_nx/releases/download/wss-v1/ryu_ldn_nx-release.zip> | `RELEASE_SHA256` in `build.sh` |
 | `ca.pem` (cut from) | <https://curl.se/ca/cacert.pem>, matched against <https://curl.se/ca/cacert.pem.sha256> | `a41b5d356aea97a529fe27e0f7316d2f9d946d75927476cf9cf1b90637d00505` |
 | `emummc.txt` (body) | <https://nintendohomebrew.com/assets/emummc.txt> (Last-Modified 2026-05-15), linked from the NH switch guide's [Blocking Nintendo servers](https://nh-server.github.io/switch-guide/extras/blocking_nintendo/) page | `51c031bbde08df34bd8ebc859b9bb8b635cd406d9fb57f83f17b25b88fdc04b1` |
 

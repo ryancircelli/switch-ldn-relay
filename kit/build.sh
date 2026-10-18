@@ -38,7 +38,7 @@ CA_SHA256=a41b5d356aea97a529fe27e0f7316d2f9d946d75927476cf9cf1b90637d00505     #
 HOSTS_SHA256=51c031bbde08df34bd8ebc859b9bb8b635cd406d9fb57f83f17b25b88fdc04b1  # Last-Modified 2026-05-15
 AMS_TARGET=1.12.1   # the pinned release is built against Atmosphere 1.12.1; must match INSTALL.md
 RELEASE_TAG=wss-v1
-RELEASE_SHA256=TODO   # sha256 of ryu_ldn_nx-release.zip at RELEASE_TAG
+RELEASE_SHA256=76ffd7b7f7c13325bd51c37704bd43748880da585466568bf39beefd94bbce3b   # sha256 of ryu_ldn_nx-release.zip at RELEASE_TAG
 RELEASE_URL=https://github.com/ryancircelli/ryu_ldn_nx/releases/download/$RELEASE_TAG/ryu_ldn_nx-release.zip
 CA_ROOTS="ISRG Root X1|ISRG Root X2|GTS Root R1|GTS Root R3|GTS Root R4|SSL.com Root Certification Authority RSA|SSL.com Root Certification Authority ECC|SSL.com TLS RSA Root CA 2022|SSL.com TLS ECC Root CA 2022"
 

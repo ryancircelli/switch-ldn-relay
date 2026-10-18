@@ -43,7 +43,7 @@ export function upgradeStatus(url: string, headers: Record<string, string>): Pro
 
 /** Splits a TCP byte stream into packets by the header's data_size. */
 export function packetSplitter(onPacket: (p: Buffer) => void) {
-  let buf = Buffer.alloc(0);
+  let buf: Buffer = Buffer.alloc(0);
   return (d: Buffer) => {
     buf = buf.length ? Buffer.concat([buf, d]) : d;
     while (buf.length >= HEADER_SIZE) {

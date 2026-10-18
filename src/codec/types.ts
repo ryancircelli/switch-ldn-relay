@@ -283,7 +283,7 @@ export function packet(type: PacketId, payload: Uint8Array = new Uint8Array(0)):
 }
 
 /**
- * Validates one WebSocket message as exactly one packet (CONTRACT.md).
+ * Validates one WebSocket message as exactly one packet (docs/CONTRACT.md).
  * Returns null when the relay must close with 1002.
  */
 export function parsePacket(msg: Uint8Array): { type: number; payload: Uint8Array } | null {

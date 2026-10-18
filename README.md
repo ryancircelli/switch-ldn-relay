@@ -1,40 +1,115 @@
 # switch-ldn relay
 
-A Cloudflare Worker and Durable Object that stand in for LdnServer (RyuLDN), so two
-Switches running the ryu_ldn_nx fork can play Local Wireless games over `wss://`.
-The wire contract with the Switch side is `../CONTRACT.md`; the design is in `../PLAN.md`.
+A relay that lets Nintendo Switch consoles play Local Wireless games with each other over the internet.
+It is a Cloudflare Worker with one Durable Object that stands in for LdnServer (RyuLDN). The consoles
+run [ryu_ldn_nx](https://github.com/ryancircelli/ryu_ldn_nx), an Atmosphère sysmodule that carries
+Local Wireless traffic to the relay over `wss://`.
+
+**Each person runs their own relay.** There is no shared or public server. You deploy this Worker to
+your own Cloudflare account (the free plan is enough for a couple of consoles), make one token per
+console, and keep those tokens to yourself. Tokens are never shared between people or between
+consoles, and the Worker stores only their SHA-256 hashes.
+
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ryancircelli/switch-ldn-relay)
+
+## What you need
+
+- A Cloudflare account (free plan).
+- Node.js 22 or later (the desktop tools in `tools/` need 24).
+- For the SD-card kits: bash, `openssl`, `curl`, `unzip`, `zip`, `python3`.
+- Switches with Atmosphère 1.12.1 on emuMMC. See [kit/INSTALL.md](kit/INSTALL.md).
+
+## 1. Make the tokens and SD-card kits
+
+The kit needs your relay's hostname: `switch-ldn.<subdomain>.workers.dev`, where `<subdomain>` is your
+account's workers.dev subdomain (shown in the Cloudflare dashboard under Workers & Pages). If you name
+the Worker something other than `switch-ldn`, use that name instead.
+
+```sh
+git clone https://github.com/ryancircelli/switch-ldn-relay
+cd switch-ldn-relay/kit
+RELAY_HOST=switch-ldn.<subdomain>.workers.dev ./build.sh switch-a
+RELAY_HOST=switch-ldn.<subdomain>.workers.dev ./build.sh switch-b
+```
+
+The first build for each console mints its token in `kit/secrets/<id>.token` and prints the Worker
+secret name (`TOKEN_SWITCH_A`), the token's SHA-256, and the `npx wrangler secret put` command. The
+**hash** goes to Cloudflare. The **token** stays in `kit/secrets/` and on that console's SD card.
+`kit/out/<id>/` and `kit/out/<id>.zip` are the SD-card kits. Everything under `kit/secrets/` and
+`kit/out/` is gitignored.
+
+Console ids are `a-z`, `0-9` and `-`, up to 32 characters. The secret name is the id in upper case
+with `-` changed to `_`, so `switch-a` becomes `TOKEN_SWITCH_A`.
+
+## 2. Deploy your relay
+
+**With the button:** click **Deploy to Cloudflare** above. It copies this repository into your GitHub
+or GitLab account, creates the Durable Object, and deploys with Workers Builds. When it asks for
+`TOKEN_SWITCH_A` and `TOKEN_SWITCH_B`, paste the two hashes from step 1. Later pushes to your copy
+redeploy it. The included GitHub Actions workflow only runs the tests in your copy, unless you give it
+a `CLOUDFLARE_API_TOKEN` (see below).
+
+**With wrangler:**
+
+```sh
+npm ci
+npx wrangler login
+npx wrangler deploy
+npx wrangler secret put TOKEN_SWITCH_A   # paste the hash for switch-a
+npx wrangler secret put TOKEN_SWITCH_B   # paste the hash for switch-b
+```
+
+**From GitHub Actions:** `.github/workflows/deploy.yml` runs `npm test` on every push to `main` and
+deploys when the repository has these secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and
+`TOKEN_SWITCH_A` / `TOKEN_SWITCH_B`, which must hold the hashes, not the tokens. Without
+`CLOUDFLARE_API_TOKEN` it skips the deploy step.
+
+The relay is at `wss://switch-ldn.<subdomain>.workers.dev/ldn`. Every request that is not an
+authenticated WebSocket upgrade gets an empty 404, so a 404 in a browser means it is running.
+
+For a console with another id, add its secret the same way (`npx wrangler secret put TOKEN_<ID>`).
+The GitHub Actions workflow only sets `TOKEN_SWITCH_A` and `TOKEN_SWITCH_B`; secrets added by hand
+stay in place across deploys.
+
+## 3. Install on the consoles
+
+Follow [kit/INSTALL.md](kit/INSTALL.md): what to delete from the card first, the overlay
+prerequisites, copying the kit, and how to check that Nintendo's servers are blocked.
+
+## Revoke a console
+
+Delete its secret: `npx wrangler secret delete TOKEN_SWITCH_B`, or remove it in the dashboard under the
+Worker's Settings > Variables and Secrets. If GitHub Actions deploys your relay, also delete or replace
+the GitHub secret, or the next deploy puts it back. The other consoles are unaffected.
+
+To give that console a new token, delete `kit/secrets/switch-b.token`, rebuild its kit, store the new
+hash, and copy the new `config/ryu_ldn_nx/config.ini` to its card. Tokens are checked only when a
+console connects.
+
+## Free plan
+
+- Each incoming WebSocket message counts as 1/20 of a Durable Object request. The free plan allows
+  100,000 requests a day, which is about 2 million incoming messages. Outgoing messages are free.
+- Game traffic (ProxyData) dominates. Two consoles at 60 packets a second each make about 430,000
+  incoming messages an hour, so a fast real-time game gets about 4.5 hours a day. Turn-based games use far less.
+- Limits reset at 00:00 UTC. Past them, calls fail; you are not billed.
+- The Lobby logs `ldn: N incoming messages in 60s` about once a minute while consoles are connected.
+  Watch it with `npx wrangler tail` during a real session before relying on an estimate.
+  Workers Paid ($5 a month) lifts the caps.
+
+## How it works
+
+The wire contract with the Switch side is [docs/CONTRACT.md](docs/CONTRACT.md).
 
 - `src/index.ts`: Worker. It accepts only `GET /ldn` WebSocket upgrades with `X-Console-Id` and
   `Authorization: Bearer <64 hex>`, checks `sha256(token)` against the `TOKEN_<ID>` secret with
   `crypto.subtle.timingSafeEqual`, and answers 404 to everything else.
-- `src/lobby.ts`: the `Lobby` Durable Object (one instance, `main`). It is a port of LdnServer's handlers
-  and `HostedGame`, built on the hibernation API, with games kept in SQLite.
-- `src/codec/`: the packed little-endian structs from `types.hpp`.
+- `src/lobby.ts`: the `Lobby` Durable Object (one instance, `main`). It is a port of
+  [LdnServer](https://github.com/Ryujinx/LdnServer)'s handlers and `HostedGame` from C# to TypeScript,
+  built on the hibernation API, with games kept in SQLite.
+- `src/codec/`: the packed little-endian structs from the sysmodule's `types.hpp`.
 - `tools/`: desktop client, end-to-end test, TCP-to-WebSocket bridge, layout dump.
-
-## Deploy
-
-1. Generate one token per console and keep it for that console's `config.ini`:
-
-   ```sh
-   openssl rand -hex 32                   # the token: goes on the SD card only
-   printf %s "$TOKEN" | sha256sum         # its hash: goes to Cloudflare
-   ```
-
-2. Store the **hash** (lowercase hex) as a Worker secret, one per console. The name comes from the
-   console id: upper case, with `-` changed to `_`, so `switch-a` becomes `TOKEN_SWITCH_A`:
-
-   ```sh
-   npx wrangler secret put TOKEN_SWITCH_A
-   npx wrangler secret put TOKEN_SWITCH_B
-   ```
-
-   CI (`.github/workflows/deploy.yml`) does the same from the GitHub secrets `TOKEN_SWITCH_A` and
-   `TOKEN_SWITCH_B`, so those GitHub secrets must also hold the hashes, not the tokens.
-
-3. `npx wrangler deploy` (or push to `main`). The relay is at `wss://switch-ldn.<subdomain>.workers.dev/ldn`.
-
-To revoke a console, delete its secret (`npx wrangler secret delete TOKEN_SWITCH_B`). The other console is unaffected.
+- `kit/`: builds the SD-card kits (`build.sh`, `check.sh`, `INSTALL.md`).
 
 ## Local testing
 
@@ -47,8 +122,8 @@ npm run test:e2e -- --tcp 127.0.0.1:30456   # same lobby scenario against a C# L
 LDN_TOKEN_A=.. LDN_TOKEN_B=.. node --experimental-transform-types tools/compare.ts --url ws://127.0.0.1:8787/ldn --tcp 127.0.0.1:30456
 ```
 
-To run the relay by hand, put the hashes in `.dev.vars` (`TOKEN_SWITCH_A=<sha256 hex>`, gitignored) and run `npm run dev`.
-Then:
+To run the relay by hand, copy `.dev.vars.example` to `.dev.vars` (gitignored), fill in the hashes
+(`TOKEN_SWITCH_A=<sha256 hex>`), and run `npm run dev`. Then:
 
 ```sh
 LDN_TOKEN=<token a> node --experimental-transform-types tools/client.ts host
@@ -61,17 +136,6 @@ The tools need Node 24 or later. Tokens are read from the environment, never fro
 
 If `types.hpp` changes, run `tools/dump-layout.sh [path/to/ryu_ldn_nx]` (needs g++) to regenerate
 `test/layout/types.json`. The codec test compares every struct size and field offset against that file.
-
-## Free plan
-
-- Each incoming WebSocket message counts as 1/20 of a Durable Object request. The free plan allows
-  100,000 requests a day, which is about 2 million incoming messages. Outgoing messages are free.
-- Game traffic (ProxyData) dominates. Two consoles at 60 packets a second each make about 430,000
-  incoming messages an hour, so a fast real-time game gets about 4.5 hours a day. Turn-based games use far less.
-- Limits reset at 00:00 UTC. Past them, calls fail; you are not billed.
-- The Lobby logs `ldn: N incoming messages in 60s` about once a minute while consoles are connected.
-  Watch it with `npx wrangler tail` during a real session before relying on an estimate.
-  Workers Paid ($5 a month) lifts the caps.
 
 ## Where the relay differs from LdnServer
 
@@ -90,3 +154,11 @@ These differences are deliberate. Everything else follows the C# handlers, inclu
 - Liveness: a Durable Object alarm every 10 s replaces the C# ping loop, with the same rules. A session
   idle for more than 10 s gets `Ping{requester=0}`, and one that has not answered by the next tick is closed.
   After the object wakes from hibernation, every session counts as idle once.
+
+## License
+
+MIT; see [LICENSE](LICENSE). `src/lobby.ts` is a port of
+[LdnServer](https://github.com/Ryujinx/LdnServer) (MIT, Ryujinx Team and Contributors), whose notice is
+included in `LICENSE`. `kit/vendor/cacert.pem` is Mozilla's CA bundle as published by curl
+(<https://curl.se/docs/caextract.html>), under the Mozilla Public License 2.0; the `ca.pem` in each kit
+is cut from it.

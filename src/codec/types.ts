@@ -1,6 +1,6 @@
 // RyuLDN wire structs, mirroring ryu_ldn_nx sysmodule/source/protocol/types.hpp
 // field for field (same names), checked against it by test/codec.test.ts.
-import { array, bytes, struct } from "./struct";
+import { array, bytes, struct } from "./struct.ts";
 
 export const MAGIC = 0x4e444c52; // "RLDN"
 export const VERSION = 1;

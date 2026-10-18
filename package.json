@@ -4,8 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "test": "vitest run",
-    "test:e2e": "node --experimental-strip-types tools/e2e.ts",
+    "test": "tsc --noEmit && vitest run",
+    "test:e2e": "node --experimental-transform-types tools/e2e.ts",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

@@ -1,3 +1,7 @@
 node_modules/
 .wrangler/
 .dev.vars*
+!.dev.vars.example
+kit/out/
+kit/secrets/
+kit/cache/

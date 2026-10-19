@@ -28,14 +28,14 @@ try:
     s, l = c["server"], c["ldn"]
     host = s.get("host", "")
     check(host != "", "[server] host is empty")
-    check(s.get("port") == "443", "[server] port is not 443")
+    check(s.get("port", "443") == "443", "[server] port is not 443")
     check(s.get("transport") == "wss", "[server] transport is not wss")
-    check(s.get("path", "").startswith("/"), "[server] path does not start with /")
+    check(s.get("path", "/ldn") == "/ldn", "[server] path is not /ldn")
     check(re.fullmatch(r"[0-9a-f]{64}", s.get("token", "")) is not None, "[server] token is not 64 lowercase hex characters")
-    ca_file = s.get("ca_file", "")
+    ca_file = s.get("ca_file", "sdmc:/config/ryu_ldn_nx/ca.pem")  # the sysmodule's default
     check(ca_file.startswith("sdmc:/") and os.path.isfile(os.path.join(kit, ca_file[6:])),
           "[server] ca_file does not point at a file inside the kit")
-    check(l.get("disable_p2p") == "1", "[ldn] disable_p2p is not 1")
+    check(l.get("disable_p2p", "1") == "1", "[ldn] disable_p2p is not 1")
     check(stat.S_IMODE(os.stat(cfg_path).st_mode) == 0o600, "config.ini is not mode 600")
 except Exception as e:  # message names keys/sections only, never values
     errors.append(f"config.ini does not parse: {type(e).__name__}")

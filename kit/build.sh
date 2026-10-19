@@ -116,15 +116,10 @@ cat > "$OUT/config/ryu_ldn_nx/config.ini" <<EOF
 
 [server]
 host = $RELAY_HOST
-port = 443
 transport = wss
-path = /ldn
 token = $token
-ca_file = sdmc:/config/ryu_ldn_nx/ca.pem
 
 [ldn]
-enabled = 1
-disable_p2p = 1
 ; Hold while launching a game to use real Local Wireless instead of the relay.
 ; Names: A B X Y L R ZL ZR PLUS MINUS LSTICK RSTICK DLEFT DUP DRIGHT DDOWN, combine with +, or none.
 ; Avoid L and R: Atmosphere uses them at launch (L disables mods/cheats, R opens hbmenu).

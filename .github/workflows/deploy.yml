@@ -30,7 +30,5 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           secrets: |
             TOKEN_SWITCH_A
-            TOKEN_SWITCH_B
         env:
           TOKEN_SWITCH_A: ${{ secrets.TOKEN_SWITCH_A }}
-          TOKEN_SWITCH_B: ${{ secrets.TOKEN_SWITCH_B }}

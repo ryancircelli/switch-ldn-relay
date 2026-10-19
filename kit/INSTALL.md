@@ -1,18 +1,20 @@
 # SD-card install kit
 
-Build one kit per console, pointing at your own Worker. From this `kit/` directory:
+Build the kit, pointing at your own Worker. From this `kit/` directory:
 
 ```sh
 RELAY_HOST=switch-ldn.<subdomain>.workers.dev ./build.sh switch-a
-RELAY_HOST=switch-ldn.<subdomain>.workers.dev ./build.sh switch-b
 ```
+
+The same kit goes on every console you own. Build one per console (another id) only if you want to
+revoke consoles separately.
 
 Console ids are `a-z`, `0-9` and `-`, up to 32 characters. The first build for an id mints its token
 in `secrets/<id>.token` and prints the Worker secret name (`TOKEN_SWITCH_A`), the token's SHA-256 and
 the `npx wrangler secret put` command: store that hash in your Worker. Later builds reuse the token.
 
-Each build produces `out/<id>/` (an SD-card root) and `out/<id>.zip`. Both hold that console's token,
-so keep them off shared drives and never copy one console's kit to the other card.
+Each build produces `out/<id>/` (an SD-card root) and `out/<id>.zip`. Both hold the token, so keep them
+off shared drives.
 `./check.sh out/<id>` re-checks a kit; `build.sh` runs it automatically.
 
 The sysmodule and overlay come from the pinned ryu_ldn_nx release

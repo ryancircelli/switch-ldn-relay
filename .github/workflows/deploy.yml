@@ -29,6 +29,6 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           secrets: |
-            TOKEN_SWITCH_A
+            TOKEN_SWITCHES
         env:
-          TOKEN_SWITCH_A: ${{ secrets.TOKEN_SWITCH_A }}
+          TOKEN_SWITCHES: ${{ secrets.TOKEN_SWITCHES }}

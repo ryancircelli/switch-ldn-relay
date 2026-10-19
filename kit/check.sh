@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sanity-check a built kit: check.sh out/<console-id>
+# Sanity-check a built kit: check.sh out/<name>
 # Never prints the token. Exit 0 = all good.
 set -euo pipefail
 KIT=${1:?usage: check.sh <kit-dir>}
@@ -31,7 +31,6 @@ try:
     check(s.get("port") == "443", "[server] port is not 443")
     check(s.get("transport") == "wss", "[server] transport is not wss")
     check(s.get("path", "").startswith("/"), "[server] path does not start with /")
-    check(re.fullmatch(r"[a-z0-9-]{1,32}", s.get("console_id", "")) is not None, "[server] console_id is invalid")
     check(re.fullmatch(r"[0-9a-f]{64}", s.get("token", "")) is not None, "[server] token is not 64 lowercase hex characters")
     ca_file = s.get("ca_file", "")
     check(ca_file.startswith("sdmc:/") and os.path.isfile(os.path.join(kit, ca_file[6:])),

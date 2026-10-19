@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Build the SD-card kit for one console: out/<id>/ laid out as an SD root, plus out/<id>.zip.
+# Build the SD-card kit: out/<name>/ laid out as an SD root, plus out/<name>.zip (name: switches).
 # Both contain the console's token: they are created mode 600/700 and are gitignored.
 #
-#   RELAY_HOST=switch-ldn.<subdomain>.workers.dev ./build.sh <console-id>
+#   RELAY_HOST=switch-ldn.<subdomain>.workers.dev ./build.sh [name]
 #
-# The token lives in secrets/<id>.token. If there is none, one is minted and the script prints the
+# The token lives in secrets/<name>.token. If there is none, one is minted and the script prints the
 # Worker secret name and the SHA-256 hash to store in Cloudflare (never the token itself).
 #
 # The sysmodule comes from the pinned ryu_ldn_nx release (RELEASE_TAG / RELEASE_SHA256 below),
@@ -22,8 +22,8 @@ umask 077
 
 die() { echo "build.sh: $*" >&2; exit 1; }
 
-ID=${1:-}
-[[ $ID =~ ^[a-z0-9-]{1,32}$ ]] || die "usage: build.sh <console-id>   (id: a-z, 0-9, '-', 1..32 chars)"
+ID=${1:-switches}
+[[ $ID =~ ^[a-z0-9-]{1,32}$ ]] || die "usage: build.sh [name]   (default switches; a-z, 0-9, '-', 1..32 chars)"
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=${SDKIT_REPO:-}
@@ -37,8 +37,8 @@ TID=4200000000000010
 CA_SHA256=a41b5d356aea97a529fe27e0f7316d2f9d946d75927476cf9cf1b90637d00505     # Mozilla certdata 2026-09-25
 HOSTS_SHA256=51c031bbde08df34bd8ebc859b9bb8b635cd406d9fb57f83f17b25b88fdc04b1  # Last-Modified 2026-05-15
 AMS_TARGET=1.12.1   # the pinned release is built against Atmosphere 1.12.1; must match INSTALL.md
-RELEASE_TAG=wss-v1
-RELEASE_SHA256=76ffd7b7f7c13325bd51c37704bd43748880da585466568bf39beefd94bbce3b   # sha256 of ryu_ldn_nx-release.zip at RELEASE_TAG
+RELEASE_TAG=wss-v2
+RELEASE_SHA256=36720de50d703b8e416fd087fb23847e03011a80ca3dd1ec5a7edfc30d407b51   # sha256 of ryu_ldn_nx-release.zip at RELEASE_TAG
 RELEASE_URL=https://github.com/ryancircelli/ryu_ldn_nx/releases/download/$RELEASE_TAG/ryu_ldn_nx-release.zip
 CA_ROOTS="ISRG Root X1|ISRG Root X2|GTS Root R1|GTS Root R3|GTS Root R4|SSL.com Root Certification Authority RSA|SSL.com Root Certification Authority ECC|SSL.com TLS RSA Root CA 2022|SSL.com TLS ECC Root CA 2022"
 
@@ -112,14 +112,13 @@ awk -v want="$CA_ROOTS" 'BEGIN { n = split(want, w, "|"); for (i = 1; i <= n; i+
 } > "$OUT/atmosphere/hosts/emummc.txt"
 
 cat > "$OUT/config/ryu_ldn_nx/config.ini" <<EOF
-; ryu_ldn_nx config for $ID. Contains this console's secret token: never share or post this file.
+; ryu_ldn_nx config. Contains your secret relay token: never share or post this file.
 
 [server]
 host = $RELAY_HOST
 port = 443
 transport = wss
 path = /ldn
-console_id = $ID
 token = $token
 ca_file = sdmc:/config/ryu_ldn_nx/ca.pem
 

@@ -28,27 +28,28 @@ the Worker something other than `switch-ldn`, use that name instead.
 ```sh
 git clone https://github.com/ryancircelli/switch-ldn-relay
 cd switch-ldn-relay/kit
-RELAY_HOST=switch-ldn.<subdomain>.workers.dev ./build.sh switch-a
+RELAY_HOST=switch-ldn.<subdomain>.workers.dev ./build.sh
 ```
 
-One kit is enough: copy the same `kit/out/switch-a.zip` to every console you own. Each connection
-gets its own session and MAC, so consoles sharing a token never collide. Build a kit per console
-(`./build.sh switch-b`, and so on) only if you want to revoke one console without the others.
+One kit is enough: copy the same `kit/out/switches.zip` to every console you own, any number of them
+(a room holds as many players as the game allows, up to 8). Each connection gets its own session and
+MAC, so consoles sharing a token never collide.
 
-The first build for an id mints its token in `kit/secrets/<id>.token` and prints the Worker
-secret name (`TOKEN_SWITCH_A`), the token's SHA-256, and the `npx wrangler secret put` command. The
-**hash** goes to Cloudflare. The **token** stays in `kit/secrets/` and on your SD cards.
-`kit/out/<id>/` and `kit/out/<id>.zip` are the SD-card kits. Everything under `kit/secrets/` and
-`kit/out/` is gitignored.
+The first build mints the token in `kit/secrets/switches.token` and prints the Worker secret name
+(`TOKEN_SWITCHES`), the token's SHA-256, and the `npx wrangler secret put` command. The **hash** goes
+to Cloudflare. The **token** stays in `kit/secrets/` and on your SD cards. Everything under
+`kit/secrets/` and `kit/out/` is gitignored.
 
-Console ids are `a-z`, `0-9` and `-`, up to 32 characters. The secret name is the id in upper case
-with `-` changed to `_`, so `switch-a` becomes `TOKEN_SWITCH_A`.
+Optional: `./build.sh <name>` makes a kit with its own token (`secrets/<name>.token`, secret
+`TOKEN_<NAME>`, `-` becomes `_`), for example to cut off one console without the others. Names are
+`a-z`, `0-9` and `-`, up to 32 characters. The relay accepts any token whose hash matches any
+`TOKEN_*` secret; the name is only a label.
 
 ## 2. Deploy your relay
 
 **With the button:** click **Deploy to Cloudflare** above. It copies this repository into your GitHub
 or GitLab account, creates the Durable Object, and deploys with Workers Builds. When it asks for
-`TOKEN_SWITCH_A`, paste the hash from step 1. Later pushes to your copy
+`TOKEN_SWITCHES`, paste the hash from step 1. Later pushes to your copy
 redeploy it. The included GitHub Actions workflow only runs the tests in your copy, unless you give it
 a `CLOUDFLARE_API_TOKEN` (see below).
 
@@ -58,19 +59,19 @@ a `CLOUDFLARE_API_TOKEN` (see below).
 npm ci
 npx wrangler login
 npx wrangler deploy
-npx wrangler secret put TOKEN_SWITCH_A   # paste the hash for switch-a
+npx wrangler secret put TOKEN_SWITCHES   # paste the hash from step 1
 ```
 
 **From GitHub Actions:** `.github/workflows/deploy.yml` runs `npm test` on every push to `main` and
 deploys when the repository has these secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, and
-`TOKEN_SWITCH_A`, which must hold the hash, not the tokens. Without
+`TOKEN_SWITCHES`, which must hold the hash, not the tokens. Without
 `CLOUDFLARE_API_TOKEN` it skips the deploy step.
 
 The relay is at `wss://switch-ldn.<subdomain>.workers.dev/ldn`. Every request that is not an
 authenticated WebSocket upgrade gets an empty 404, so a 404 in a browser means it is running.
 
 For another token (another kit id), add its secret the same way (`npx wrangler secret put TOKEN_<ID>`).
-The GitHub Actions workflow only sets `TOKEN_SWITCH_A`; secrets added by hand
+The GitHub Actions workflow only sets `TOKEN_SWITCHES`; secrets added by hand
 stay in place across deploys.
 
 ## 3. Install on the consoles
@@ -80,11 +81,11 @@ prerequisites, copying the kit, and how to check that Nintendo's servers are blo
 
 ## Revoke a token
 
-Delete its secret, e.g. `npx wrangler secret delete TOKEN_SWITCH_B`, or remove it in the dashboard under the
+Delete its secret, e.g. `npx wrangler secret delete TOKEN_SWITCHES`, or remove it in the dashboard under the
 Worker's Settings > Variables and Secrets. If GitHub Actions deploys your relay, also delete or replace
 the GitHub secret, or the next deploy puts it back. Consoles with other tokens are unaffected; every console using that token is cut off.
 
-To replace a token, delete `kit/secrets/<id>.token`, rebuild the kit, store the new hash, and copy the
+To replace a token, delete `kit/secrets/<name>.token`, rebuild the kit, store the new hash, and copy the
 new `config/ryu_ldn_nx/config.ini` to each card that used it. Tokens are checked only when a
 console connects.
 
@@ -125,7 +126,7 @@ LDN_TOKEN_A=.. LDN_TOKEN_B=.. node --experimental-transform-types tools/compare.
 ```
 
 To run the relay by hand, copy `.dev.vars.example` to `.dev.vars` (gitignored), fill in the hashes
-(`TOKEN_SWITCH_A=<sha256 hex>`), and run `npm run dev`. Then:
+(`TOKEN_SWITCHES=<sha256 hex>`), and run `npm run dev`. Then:
 
 ```sh
 LDN_TOKEN=<token a> node --experimental-transform-types tools/client.ts host

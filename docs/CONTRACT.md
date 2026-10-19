@@ -4,7 +4,7 @@
 - Upgrade request headers: `Upgrade: websocket`, `Authorization: Bearer <64 lowercase hex chars>`.
   An `X-Console-Id` header (sent by older builds) is ignored.
 - Worker stores each token as a secret named `TOKEN_<anything>` = lowercase hex SHA-256 of the token
-  (e.g. `TOKEN_SWITCH_A`). A token is accepted if its hash matches any of them; the name is only a label.
+  (e.g. `TOKEN_SWITCHES`). A token is accepted if its hash matches any of them; the name is only a label.
   Any failure -> HTTP 404, empty body.
 - After 101: binary messages only. One message = exactly one RyuLDN packet: 12-byte LdnHeader
   (magic 0x4E444C52, type u8, version u8 = 1, 2 reserved, dataSize i32 at 0x08) + dataSize payload bytes,

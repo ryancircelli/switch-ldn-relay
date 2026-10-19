@@ -19,8 +19,8 @@
   },
   "cloudflare": {
     "bindings": {
-      "TOKEN_SWITCH_A": {
-        "description": "SHA-256 (64 hex) of your consoles' token, never the token itself. `kit/build.sh switch-a` mints the token and prints this hash."
+      "TOKEN_SWITCHES": {
+        "description": "SHA-256 (64 hex) of your consoles' token, never the token itself. `kit/build.sh` mints the token and prints this hash."
       }
     }
   }

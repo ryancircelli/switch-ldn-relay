@@ -3,19 +3,17 @@
 Build the kit, pointing at your own Worker. From this `kit/` directory:
 
 ```sh
-RELAY_HOST=switch-ldn.<subdomain>.workers.dev ./build.sh switch-a
+RELAY_HOST=switch-ldn.<subdomain>.workers.dev ./build.sh
 ```
 
-The same kit goes on every console you own. Build one per console (another id) only if you want to
-revoke consoles separately.
-
-Console ids are `a-z`, `0-9` and `-`, up to 32 characters. The first build for an id mints its token
-in `secrets/<id>.token` and prints the Worker secret name (`TOKEN_SWITCH_A`), the token's SHA-256 and
+The same kit goes on every console you own. The first build mints the token in
+`secrets/switches.token` and prints the Worker secret name (`TOKEN_SWITCHES`), the token's SHA-256 and
 the `npx wrangler secret put` command: store that hash in your Worker. Later builds reuse the token.
+(`./build.sh <name>` makes a kit with its own token instead; see the README.)
 
-Each build produces `out/<id>/` (an SD-card root) and `out/<id>.zip`. Both hold the token, so keep them
-off shared drives.
-`./check.sh out/<id>` re-checks a kit; `build.sh` runs it automatically.
+The build produces `out/switches/` (an SD-card root) and `out/switches.zip`. Both hold the token, so
+keep them off shared drives.
+`./check.sh out/switches` re-checks a kit; `build.sh` runs it automatically.
 
 The sysmodule and overlay come from the pinned ryu_ldn_nx release
 (<https://github.com/ryancircelli/ryu_ldn_nx/releases/tag/wss-v1>, `ryu_ldn_nx-release.zip`), downloaded
@@ -59,7 +57,7 @@ The overlay is built on libultrahand, so Ultrahand is the recommended menu.
 
 ## 3. Copy the kit
 
-Copy the contents of `out/<id>/` (or extract `out/<id>.zip`) to the SD root of **that** console,
+Copy the contents of `out/switches/` (or extract `out/switches.zip`) to the SD root of each console,
 merging folders. It contains:
 
 | Path | What |

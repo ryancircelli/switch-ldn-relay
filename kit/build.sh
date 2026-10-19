@@ -113,22 +113,49 @@ awk -v want="$CA_ROOTS" 'BEGIN { n = split(want, w, "|"); for (i = 1; i <= n; i+
 
 cat > "$OUT/config/ryu_ldn_nx/config.ini" <<EOF
 ; ryu_ldn_nx config. Contains your secret relay token: never share or post this file.
+; Lines starting with ; are comments. A commented-out setting shows its default value:
+; remove the ; in front of it to change it. Saving settings from the overlay rewrites this
+; file without these comments.
 
 [server]
+; Your relay's address (your Cloudflare Worker).
 host = $RELAY_HOST
+; How the Switch talks to the relay: wss = encrypted WebSocket. Without it the relay is not used.
 transport = wss
+; Your secret token. The relay only lets in Switches that present it.
 token = $token
+; Relay port. 443 is the standard port for encrypted web traffic.
+;port = 443
+; Address on the relay that Switches connect to: wss://<host>/ldn.
+;path = /ldn
+; Certificates used to check that the relay is really yours before the token is sent.
+; The kit puts this file here; only change it if you move the file.
+;ca_file = sdmc:/config/ryu_ldn_nx/ca.pem
 
 [ldn]
-; Hold while launching a game to use real Local Wireless instead of the relay.
-; Names: A B X Y L R ZL ZR PLUS MINUS LSTICK RSTICK DLEFT DUP DRIGHT DDOWN, combine with +, or none.
+; 1 = games' Local Wireless goes through the relay. 0 = turn the relay off and use
+; real Local Wireless only, as if this mod were not installed.
+;enabled = 1
+; Button(s) to hold while launching a game to use real Local Wireless for that game
+; (for playing in the same room). Names: A B X Y L R ZL ZR PLUS MINUS LSTICK RSTICK
+; DLEFT DUP DRIGHT DDOWN; combine with +, e.g. ZL+ZR; or none to disable.
 ; Avoid L and R: Atmosphere uses them at launch (L disables mods/cheats, R opens hbmenu).
-real_wireless_button = ZR
+;real_wireless_button = ZR
+; 1 = all game traffic goes through the relay. 0 = let the host's Switch accept players
+; directly; this relay does not support that, so leave it at 1.
+;disable_p2p = 1
+; Room code: with use_passphrase = 1, you only see rooms created with the same passphrase.
+; Format: Ryujinx- followed by 8 characters from 0-9 and a-f, e.g. Ryujinx-1a2b3c4d.
+; Your relay is already private to your token, so this is only needed to split rooms.
+;use_passphrase = 0
+;passphrase =
 
 [debug]
-; Set enabled = 1 while testing; the log lands in config/ryu_ldn_nx/ryu_ldn_nx.log
-; level: 0 errors, 1 warnings (default), 2 info (best for a first test), 3 everything
-enabled = 0
+; 1 = write a log to config/ryu_ldn_nx/ryu_ldn_nx.log (turn on while testing).
+;enabled = 0
+; How much the log says: 0 errors, 1 warnings, 2 normal activity (best for a first
+; test), 3 everything.
+;level = 1
 EOF
 hash=$(printf %s "$token" | sha256sum | cut -d' ' -f1)
 unset token

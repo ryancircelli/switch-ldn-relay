@@ -127,8 +127,8 @@ real_wireless_button = ZR
 
 [debug]
 ; Set enabled = 1 while testing; the log lands in config/ryu_ldn_nx/ryu_ldn_nx.log
+; level: 0 errors, 1 warnings (default), 2 info (best for a first test), 3 everything
 enabled = 0
-level = 1
 EOF
 hash=$(printf %s "$token" | sha256sum | cut -d' ' -f1)
 unset token

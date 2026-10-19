@@ -26,7 +26,6 @@ const BROADCAST_192 = 0xc0a800ff; // 192.168.0.255
 
 interface Session {
   sid: string; // 32 hex chars; also the socket's tag
-  console: string;
   mac: string; // 12 hex chars
   ip: number;
   nodeId: number;
@@ -91,7 +90,6 @@ export class Lobby extends DurableObject<Env> {
     const [client, server] = Object.values(new WebSocketPair());
     const s: Session = {
       sid: randomHex(16),
-      console: req.headers.get("X-Console-Id") ?? "",
       mac: randomHex(6),
       ip: 0,
       nodeId: 0,

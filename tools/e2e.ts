@@ -1,6 +1,6 @@
 // End-to-end check with two desktop clients.
 //   npm run test:e2e                         starts `wrangler dev` with throwaway tokens, tests it, stops it
-//   npm run test:e2e -- --url wss://host/ldn uses LDN_TOKEN_A / LDN_TOKEN_B against a running relay
+//   npm run test:e2e -- --url wss://host/ldn uses LDN_TOKEN_A (and LDN_TOKEN_B, default A) against a running relay
 //   npm run test:e2e -- --tcp 127.0.0.1:30456 runs the lobby part against a C# LdnServer, for comparison
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -19,10 +19,11 @@ async function step(name: string, f: () => Promise<void>) {
 
 async function authChecks(url: string, tokenA: string) {
   const status = (h: Record<string, string>) => upgradeStatus(url, h);
-  await step("missing token -> 404", async () => assert.equal(await status({ "X-Console-Id": "switch-a" }), 404));
-  await step("wrong token -> 404", async () => assert.equal(await status(authHeaders("switch-a", "0".repeat(64))), 404));
-  await step("token for another console -> 404", async () => assert.equal(await status(authHeaders("switch-b", tokenA)), 404));
-  await step("right token -> 101", async () => assert.equal(await status(authHeaders("switch-a", tokenA)), 101));
+  await step("missing token -> 404", async () => assert.equal(await status({}), 404));
+  await step("wrong token -> 404", async () => assert.equal(await status(authHeaders("0".repeat(64))), 404));
+  await step("legacy X-Console-Id header is ignored -> 101", async () =>
+    assert.equal(await status({ ...authHeaders(tokenA), "X-Console-Id": "anything" }), 101));
+  await step("right token -> 101", async () => assert.equal(await status(authHeaders(tokenA)), 101));
 }
 
 async function lobby(open: (who: "a" | "b") => Promise<Conn>) {
@@ -79,9 +80,9 @@ if (values.tcp) {
   const [host, port] = values.tcp.split(":");
   await lobby(() => connectTcp(host, Number(port)));
 } else if (values.url) {
-  const tokens = { a: process.env.LDN_TOKEN_A ?? "", b: process.env.LDN_TOKEN_B ?? "" };
+  const tokens = { a: process.env.LDN_TOKEN_A ?? "", b: process.env.LDN_TOKEN_B || process.env.LDN_TOKEN_A || "" };
   await authChecks(values.url, tokens.a);
-  await lobby((who) => connectWs(values.url!, authHeaders(`switch-${who}`, tokens[who])));
+  await lobby((who) => connectWs(values.url!, authHeaders(tokens[who])));
 } else {
   const tokens = { a: randomBytes(32).toString("hex"), b: randomBytes(32).toString("hex") };
   const sha = (t: string) => createHash("sha256").update(t).digest("hex");
@@ -109,7 +110,7 @@ if (values.tcp) {
       }
     }
     await authChecks(url, tokens.a);
-    await lobby((who) => connectWs(url, authHeaders(`switch-${who}`, tokens[who])));
+    await lobby((who) => connectWs(url, authHeaders(tokens[who])));
   } finally {
     stop();
   }

@@ -152,10 +152,9 @@ async function scanFor(_d: Conn, lcid: bigint, c: Clients): Promise<NetworkInfo>
 }
 
 const tokens: Record<Name, string> = { A: process.env.LDN_TOKEN_A ?? "", B: process.env.LDN_TOKEN_B ?? "", C: process.env.LDN_TOKEN_A ?? "", D: process.env.LDN_TOKEN_B ?? "" };
-const consoleOf = (n: Name) => (n === "A" || n === "C" ? "switch-a" : "switch-b");
 const [host, port] = values.tcp!.split(":");
 const csharp = await run(() => connectTcp(host, Number(port)));
-const relay = await run((n) => connectWs(values.url!, authHeaders(consoleOf(n), tokens[n])));
+const relay = await run((n) => connectWs(values.url!, authHeaders(tokens[n])));
 
 let diffs = 0;
 for (let i = 0; i < Math.max(csharp.length, relay.length); i++) {

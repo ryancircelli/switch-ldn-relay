@@ -19,7 +19,7 @@ function upgrade(headers: Record<string, string>, path = "/ldn") {
 type Conn = Ldn & { ws: WebSocket; closeCode?: number };
 
 async function open(): Promise<Conn> {
-  const res = await upgrade({ "X-Console-Id": "switch-a", Authorization: `Bearer ${TOKEN}` });
+  const res = await upgrade({ Authorization: `Bearer ${TOKEN}` });
   expect(res.status).toBe(101);
   const ws = res.webSocket!;
   ws.accept();
@@ -57,16 +57,12 @@ async function host(o: Parameters<Ldn["createAp"]>[0] = {}) {
 }
 
 describe("worker auth", () => {
-  const good = { "X-Console-Id": "switch-a", Authorization: `Bearer ${TOKEN}` };
+  const good = { Authorization: `Bearer ${TOKEN}` };
   const cases: [string, Promise<Response>][] = [
-    ["missing token", upgrade({ "X-Console-Id": "switch-a" })],
+    ["missing token", upgrade({})],
     ["wrong token", upgrade({ ...good, Authorization: `Bearer ${"b".repeat(64)}` })],
     ["uppercase token", upgrade({ ...good, Authorization: `Bearer ${"A".repeat(64)}` })],
     ["no Bearer prefix", upgrade({ ...good, Authorization: TOKEN })],
-    ["missing console id", upgrade({ Authorization: `Bearer ${TOKEN}` })],
-    ["other console's token", upgrade({ ...good, "X-Console-Id": "switch-b" })],
-    ["unknown console", upgrade({ ...good, "X-Console-Id": "switch-c" })],
-    ["bad console id", upgrade({ ...good, "X-Console-Id": "SWITCH-A" })],
     ["wrong path", upgrade(good, "/")],
     // direct call: the test harness's exports.default.fetch turns upgrade requests into GETs
     ["POST", worker.fetch(new Request("https://relay.test/ldn", { method: "POST", headers: { Upgrade: "websocket", ...good } }), env)],
@@ -79,12 +75,19 @@ describe("worker auth", () => {
       expect(await res.text()).toBe("");
     });
   }
-  it("valid token -> 101", async () => {
-    const res = await upgrade(good);
-    expect(res.status).toBe(101);
-    res.webSocket!.accept();
-    res.webSocket!.close();
-  });
+  const accepted: [string, Record<string, string>][] = [
+    ["valid token", good],
+    ["token of another TOKEN_* secret", { Authorization: `Bearer ${"b".repeat(63)}c` }],
+    ["legacy X-Console-Id header is ignored", { ...good, "X-Console-Id": "whatever" }],
+  ];
+  for (const [name, headers] of accepted) {
+    it(`${name} -> 101`, async () => {
+      const res = await upgrade(headers);
+      expect(res.status).toBe(101);
+      res.webSocket!.accept();
+      res.webSocket!.close();
+    });
+  }
 });
 
 describe("framing", () => {

@@ -2,8 +2,8 @@
 //
 // Library: connectWs / connectTcp / upgradeStatus, used by tools/e2e.ts.
 // CLI (token from LDN_TOKEN, never from argv, so it stays out of shell history):
-//   LDN_TOKEN=<hex> node --experimental-transform-types tools/client.ts host [--url ws://127.0.0.1:8787/ldn] [--console switch-a]
-//   LDN_TOKEN=<hex> node --experimental-transform-types tools/client.ts join [--url ...] [--console switch-b]
+//   LDN_TOKEN=<hex> node --experimental-transform-types tools/client.ts host [--url ws://127.0.0.1:8787/ldn]
+//   LDN_TOKEN=<hex> node --experimental-transform-types tools/client.ts join [--url ...]
 // The host echoes every ProxyData back; the joiner sends one and prints the echo.
 import net from "node:net";
 import { parseArgs } from "node:util";
@@ -13,10 +13,7 @@ import { Ldn, ipStr } from "./ldn-client.ts";
 
 export type Conn = Ldn & { close(): void };
 
-export const authHeaders = (consoleId: string, token: string) => ({
-  "X-Console-Id": consoleId,
-  Authorization: `Bearer ${token}`,
-});
+export const authHeaders = (token: string) => ({ Authorization: `Bearer ${token}` });
 
 export function connectWs(url: string, headers: Record<string, string>): Promise<Conn> {
   return new Promise((resolve, reject) => {
@@ -76,12 +73,12 @@ export function connectTcp(host: string, port: number): Promise<Conn> {
 async function cli() {
   const { positionals, values } = parseArgs({
     allowPositionals: true,
-    options: { url: { type: "string", default: "ws://127.0.0.1:8787/ldn" }, console: { type: "string" } },
+    options: { url: { type: "string", default: "ws://127.0.0.1:8787/ldn" } },
   });
   const role = positionals[0];
-  if (role !== "host" && role !== "join") throw new Error("usage: client.ts host|join [--url URL] [--console ID]");
+  if (role !== "host" && role !== "join") throw new Error("usage: client.ts host|join [--url URL]");
   const token = process.env.LDN_TOKEN ?? "";
-  const c = await connectWs(values.url!, authHeaders(values.console ?? (role === "host" ? "switch-a" : "switch-b"), token));
+  const c = await connectWs(values.url!, authHeaders(token));
   c.autoPong = true;
   const init = await c.initialize();
   console.log(`initialized, MAC ${Buffer.from(init.mac_address).toString("hex")}`);

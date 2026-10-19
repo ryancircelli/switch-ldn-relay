@@ -1,7 +1,7 @@
 // TCP -> WebSocket bridge: lets plain-TCP RyuLDN clients (the sysmodule's
 // integration tests, Ryujinx) talk to the relay. Each TCP connection gets its
 // own authenticated WebSocket; each LDN packet becomes one binary message.
-//   LDN_TOKEN=<hex> node --experimental-transform-types tools/tcp-bridge.ts [--listen 30456] [--url ws://127.0.0.1:8787/ldn] [--console switch-a]
+//   LDN_TOKEN=<hex> node --experimental-transform-types tools/tcp-bridge.ts [--listen 30456] [--url ws://127.0.0.1:8787/ldn]
 import net from "node:net";
 import { parseArgs } from "node:util";
 import WebSocket from "ws";
@@ -11,10 +11,9 @@ const { values } = parseArgs({
   options: {
     listen: { type: "string", default: "30456" },
     url: { type: "string", default: "ws://127.0.0.1:8787/ldn" },
-    console: { type: "string", default: "switch-a" },
   },
 });
-const headers = authHeaders(values.console!, process.env.LDN_TOKEN ?? "");
+const headers = authHeaders(process.env.LDN_TOKEN ?? "");
 
 net
   .createServer((sock) => {

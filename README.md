@@ -69,7 +69,7 @@ deploys when the repository has these secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLA
 The relay is at `wss://switch-ldn.<subdomain>.workers.dev/ldn`. Every request that is not an
 authenticated WebSocket upgrade gets an empty 404, so a 404 in a browser means it is running.
 
-For a console with another id, add its secret the same way (`npx wrangler secret put TOKEN_<ID>`).
+For another token (another kit id), add its secret the same way (`npx wrangler secret put TOKEN_<ID>`).
 The GitHub Actions workflow only sets `TOKEN_SWITCH_A`; secrets added by hand
 stay in place across deploys.
 
@@ -103,8 +103,8 @@ console connects.
 
 The wire contract with the Switch side is [docs/CONTRACT.md](docs/CONTRACT.md).
 
-- `src/index.ts`: Worker. It accepts only `GET /ldn` WebSocket upgrades with `X-Console-Id` and
-  `Authorization: Bearer <64 hex>`, checks `sha256(token)` against the `TOKEN_<ID>` secret with
+- `src/index.ts`: Worker. It accepts only `GET /ldn` WebSocket upgrades with
+  `Authorization: Bearer <64 hex>`, checks `sha256(token)` against every `TOKEN_*` secret with
   `crypto.subtle.timingSafeEqual`, and answers 404 to everything else.
 - `src/lobby.ts`: the `Lobby` Durable Object (one instance, `main`). It is a port of
   [LdnServer](https://github.com/Ryujinx/LdnServer)'s handlers and `HostedGame` from C# to TypeScript,
